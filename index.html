@@ -1,0 +1,540 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>랜덤 단어 카드</title>
+  <link href="https://fonts.googleapis.com/css2?family=Gowun+Dodum&family=Black+Han+Sans&display=swap" rel="stylesheet"/>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg: #0d0d0d;
+      --surface: #161616;
+      --border: #2a2a2a;
+      --accent: #e8ff47;
+      --accent2: #ff6b35;
+      --text: #f0f0f0;
+      --muted: #555;
+    }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'Gowun Dodum', sans-serif;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 40px 20px;
+      gap: 32px;
+    }
+
+    /* ── 타이틀 ── */
+    h1 {
+      font-family: 'Black Han Sans', sans-serif;
+      font-size: clamp(2rem, 6vw, 3.5rem);
+      color: var(--accent);
+      letter-spacing: -0.02em;
+      text-align: center;
+    }
+    h1 span { color: var(--accent2); }
+
+    /* ── 입력 패널 ── */
+    .input-panel {
+      width: 100%;
+      max-width: 560px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 24px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    .input-panel label {
+      font-size: 0.85rem;
+      color: var(--muted);
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+    }
+
+    .word-input-row {
+      display: flex;
+      gap: 8px;
+    }
+
+    .word-input-row input {
+      flex: 1;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      color: var(--text);
+      font-family: inherit;
+      font-size: 1rem;
+      padding: 10px 14px;
+      border-radius: 8px;
+      outline: none;
+      transition: border-color 0.2s;
+    }
+    .word-input-row input:focus { border-color: var(--accent); }
+    .word-input-row input::placeholder { color: var(--muted); }
+
+    button {
+      cursor: pointer;
+      font-family: 'Black Han Sans', sans-serif;
+      letter-spacing: 0.04em;
+      border: none;
+      border-radius: 8px;
+      transition: transform 0.1s, opacity 0.15s;
+    }
+    button:active { transform: scale(0.96); }
+
+    .btn-add {
+      background: var(--accent);
+      color: #000;
+      padding: 10px 18px;
+      font-size: 1rem;
+      white-space: nowrap;
+    }
+
+    .action-row {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+    .btn-clear {
+      background: none;
+      border: 1px solid var(--border);
+      color: var(--muted);
+      padding: 8px 14px;
+      font-size: 0.85rem;
+    }
+    .btn-clear:hover { border-color: var(--accent2); color: var(--accent2); }
+
+    /* ── 단어 목록 토글 ── */
+    .tag-toggle-btn {
+      background: none;
+      border: 1px solid var(--border);
+      color: var(--muted);
+      font-family: inherit;
+      font-size: 0.82rem;
+      padding: 5px 14px;
+      border-radius: 99px;
+      cursor: pointer;
+      transition: border-color 0.2s, color 0.2s;
+    }
+    .tag-toggle-btn:hover { border-color: var(--accent); color: var(--accent); }
+
+    .tag-area {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      overflow: hidden;
+      max-height: 0;
+      opacity: 0;
+      transition: max-height 0.35s ease, opacity 0.3s ease, margin-top 0.3s ease;
+      margin-top: 0;
+    }
+    .tag-area.open {
+      max-height: 300px;
+      opacity: 1;
+      margin-top: 4px;
+    }
+    .tag {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      background: var(--border);
+      border-radius: 99px;
+      padding: 4px 10px 4px 14px;
+      font-size: 0.88rem;
+      animation: popIn 0.2s ease;
+    }
+    @keyframes popIn {
+      from { transform: scale(0.7); opacity: 0; }
+      to   { transform: scale(1);   opacity: 1; }
+    }
+    .tag-del {
+      background: none;
+      color: var(--muted);
+      font-size: 1.1rem;
+      line-height: 1;
+      padding: 0;
+      border-radius: 50%;
+      width: 18px;
+      height: 18px;
+      display: grid;
+      place-items: center;
+      cursor: pointer;
+      border: none;
+    }
+    .tag-del:hover { color: var(--accent2); }
+
+    /* ── 카드 ── */
+    .card-wrapper {
+      perspective: 900px;
+      width: 100%;
+      max-width: 420px;
+    }
+
+    .card {
+      position: relative;
+      width: 100%;
+      padding-bottom: 60%;
+      border-radius: 20px;
+      cursor: pointer;
+      transform-style: preserve-3d;
+      transition: transform 0.05s ease-out;
+    }
+
+    .card-face {
+      position: absolute;
+      inset: 0;
+      border-radius: 20px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border: 2px solid var(--border);
+      background: var(--surface);
+      overflow: hidden;
+    }
+
+    /* 노이즈 오버레이 */
+    .card-face::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.75' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.04'/%3E%3C/svg%3E");
+      pointer-events: none;
+      opacity: 0.4;
+    }
+
+    .word-display {
+      font-family: 'Black Han Sans', sans-serif;
+      font-size: clamp(2rem, 10vw, 4rem);
+      color: var(--accent);
+      text-align: center;
+      padding: 16px;
+      position: relative;
+      z-index: 1;
+      transition: opacity 0.15s;
+    }
+
+    .word-display.flash {
+      animation: flashAnim 0.3s ease;
+    }
+    @keyframes flashAnim {
+      0%   { opacity: 0; transform: scale(0.85) rotate(-3deg); }
+      60%  { opacity: 1; transform: scale(1.05) rotate(1deg); }
+      100% { transform: scale(1) rotate(0deg); }
+    }
+
+    .hint {
+      position: absolute;
+      bottom: 14px;
+      font-size: 0.75rem;
+      color: var(--muted);
+      letter-spacing: 0.06em;
+    }
+    .num-badge {
+      position: absolute;
+      top: 14px;
+      right: 16px;
+      font-size: 0.72rem;
+      color: var(--muted);
+    }
+
+    /* ── 컨트롤 버튼 ── */
+    .controls {
+      display: flex;
+      gap: 12px;
+      flex-wrap: wrap;
+      justify-content: center;
+    }
+
+    .btn-next {
+      background: var(--accent);
+      color: #000;
+      padding: 14px 36px;
+      font-size: 1.1rem;
+      border-radius: 12px;
+    }
+    .btn-next:hover { opacity: 0.88; }
+
+    .btn-shuffle {
+      background: none;
+      border: 1px solid var(--accent2);
+      color: var(--accent2);
+      padding: 14px 22px;
+      font-size: 1rem;
+      border-radius: 12px;
+    }
+    .btn-shuffle:hover { background: var(--accent2); color: #000; }
+
+    /* ── 히스토리 ── */
+    .history {
+      width: 100%;
+      max-width: 560px;
+    }
+    .history h2 {
+      font-family: 'Black Han Sans', sans-serif;
+      font-size: 0.8rem;
+      letter-spacing: 0.1em;
+      color: var(--muted);
+      text-transform: uppercase;
+      margin-bottom: 10px;
+    }
+    .history-list {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+    }
+    .hist-item {
+      background: none;
+      border: 1px solid var(--border);
+      color: var(--muted);
+      font-size: 0.82rem;
+      padding: 3px 10px;
+      border-radius: 4px;
+      font-family: inherit;
+    }
+    .hist-item:last-child { color: var(--text); border-color: var(--accent); }
+
+    /* ── 빈 상태 ── */
+    .empty-msg {
+      font-size: 1rem;
+      color: var(--muted);
+      text-align: center;
+      padding: 32px 0;
+    }
+
+    /* ── 자동 재생 토글 ── */
+    .auto-row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-size: 0.85rem;
+      color: var(--muted);
+    }
+    .toggle {
+      position: relative;
+      width: 40px;
+      height: 22px;
+    }
+    .toggle input { opacity: 0; width: 0; height: 0; }
+    .slider {
+      position: absolute;
+      inset: 0;
+      background: var(--border);
+      border-radius: 99px;
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+    .slider::before {
+      content: '';
+      position: absolute;
+      width: 16px; height: 16px;
+      left: 3px; top: 3px;
+      background: var(--muted);
+      border-radius: 50%;
+      transition: transform 0.2s, background 0.2s;
+    }
+    .toggle input:checked + .slider { background: var(--accent); }
+    .toggle input:checked + .slider::before { transform: translateX(18px); background: #000; }
+
+    #speed-label { color: var(--text); }
+  </style>
+</head>
+<body>
+
+<h1>랜덤 <span>단어</span> 카드</h1>
+
+<!-- 입력 패널 -->
+<div class="input-panel">
+  <label>단어 추가 <span id="wordCountBadge" style="color:var(--accent);margin-left:6px"></span></label>
+  <div class="word-input-row">
+    <input id="wordInput" type="text" placeholder="사과, 바나나, 포도, 딸기..."/>
+    <button class="btn-add" onclick="addWord()">추가</button>
+  </div>
+  <button class="tag-toggle-btn" id="tagToggleBtn" onclick="toggleTagArea()" style="align-self:flex-start">▶ 단어 목록 보기</button>
+  <div class="tag-area" id="tagArea"></div>
+  <div class="action-row">
+    <button class="btn-clear" onclick="clearWords()">전체 삭제</button>
+    <div class="auto-row" style="margin-left:auto">
+      <label class="toggle">
+        <input type="checkbox" id="autoToggle" onchange="toggleAuto()"/>
+        <span class="slider"></span>
+      </label>
+      <span>자동재생</span>
+      <input id="speedRange" type="range" min="1" max="5" value="2"
+             style="width:70px;accent-color:var(--accent)" oninput="updateSpeed()"/>
+      <span id="speed-label">2s</span>
+    </div>
+  </div>
+</div>
+
+<!-- 카드 -->
+<div class="card-wrapper">
+  <div class="card" id="card" onclick="nextWord()">
+    <div class="card-face">
+      <span class="num-badge" id="numBadge"></span>
+      <div class="word-display" id="wordDisplay">
+        <span class="empty-msg">단어를 추가하면<br/>여기에 나타납니다</span>
+      </div>
+      <span class="hint">클릭하면 다음 단어</span>
+    </div>
+  </div>
+</div>
+
+<!-- 버튼 -->
+<div class="controls">
+  <button class="btn-next" onclick="nextWord()">다음 단어 ▶</button>
+  <button class="btn-shuffle" onclick="shuffleWords()">셔플 🔀</button>
+</div>
+
+<!-- 히스토리 -->
+<div class="history">
+  <h2>최근 기록</h2>
+  <div class="history-list" id="historyList"></div>
+</div>
+
+<script>
+  let words = [];
+  let queue = [];
+  let history = [];
+  let autoTimer = null;
+  let autoInterval = 2000;
+
+  const wordInput  = document.getElementById('wordInput');
+  const wordDisp   = document.getElementById('wordDisplay');
+  const numBadge   = document.getElementById('numBadge');
+  const histList   = document.getElementById('historyList');
+
+  wordInput.addEventListener('keydown', e => {
+    if (e.key === 'Enter') addWord();
+  });
+
+  function addWord() {
+    const raw = wordInput.value.trim();
+    if (!raw) return;
+    const newWords = raw.split(',').map(w => w.trim()).filter(w => w.length > 0);
+    words.push(...newWords);
+    wordInput.value = '';
+    renderTags();
+    if (queue.length === 0) refillQueue();
+    updateBadge();
+  }
+
+  function removeWord(i) {
+    words.splice(i, 1);
+    renderTags(); // 개수 배지 갱신
+    queue = queue.filter(w => words.includes(w));
+    if (queue.length === 0 && words.length > 0) refillQueue();
+    updateBadge();
+    if (words.length === 0) showEmpty();
+  }
+
+  function clearWords() {
+    words = []; queue = []; history = [];
+    renderTags();
+    renderHistory();
+    showEmpty();
+  }
+
+  function renderTags() {
+    const tagArea = document.getElementById('tagArea');
+    tagArea.innerHTML = '';
+    words.forEach((w, i) => {
+      const tag = document.createElement('div');
+      tag.className = 'tag';
+      tag.innerHTML = `<span>${w}</span><button class="tag-del" onclick="removeWord(${i})">×</button>`;
+      tagArea.appendChild(tag);
+    });
+    const badge = document.getElementById('wordCountBadge');
+    badge.textContent = words.length > 0 ? `(${words.length}개)` : '';
+  }
+
+  function toggleTagArea() {
+    const area = document.getElementById('tagArea');
+    const btn  = document.getElementById('tagToggleBtn');
+    const open = area.classList.toggle('open');
+    btn.textContent = open ? '▼ 단어 목록 숨기기' : '▶ 단어 목록 보기';
+  }
+
+  function refillQueue() {
+    queue = [...words].sort(() => Math.random() - 0.5);
+  }
+
+  function nextWord() {
+    if (words.length === 0) return;
+    if (queue.length === 0) refillQueue();
+    const w = queue.shift();
+    history.unshift(w);
+    if (history.length > 10) history.pop();
+    showWord(w);
+    renderHistory();
+    updateBadge();
+  }
+
+  function showWord(w) {
+    wordDisp.className = 'word-display';
+    void wordDisp.offsetWidth; // reflow
+    wordDisp.textContent = w;
+    wordDisp.className = 'word-display flash';
+  }
+
+  function showEmpty() {
+    wordDisp.innerHTML = '<span class="empty-msg">단어를 추가하면<br/>여기에 나타납니다</span>';
+    numBadge.textContent = '';
+  }
+
+  function updateBadge() {
+    numBadge.textContent = words.length > 0
+      ? `${words.length}개 등록 · 남은 ${queue.length}개`
+      : '';
+  }
+
+  function shuffleWords() {
+    refillQueue();
+    nextWord();
+  }
+
+  function renderHistory() {
+    histList.innerHTML = '';
+    [...history].reverse().forEach((w, i) => {
+      const el = document.createElement('div');
+      el.className = 'hist-item';
+      el.textContent = w;
+      histList.appendChild(el);
+    });
+  }
+
+  function toggleAuto() {
+    const on = document.getElementById('autoToggle').checked;
+    if (on) {
+      autoTimer = setInterval(nextWord, autoInterval);
+    } else {
+      clearInterval(autoTimer);
+    }
+  }
+
+  function updateSpeed() {
+    const v = document.getElementById('speedRange').value;
+    document.getElementById('speed-label').textContent = v + 's';
+    autoInterval = v * 1000;
+    const on = document.getElementById('autoToggle').checked;
+    if (on) {
+      clearInterval(autoTimer);
+      autoTimer = setInterval(nextWord, autoInterval);
+    }
+  }
+
+  // 키보드 단축키
+  document.addEventListener('keydown', e => {
+    if (e.target === wordInput) return;
+    if (e.key === ' ' || e.key === 'ArrowRight') { e.preventDefault(); nextWord(); }
+  });
+</script>
+</body>
+</html>
