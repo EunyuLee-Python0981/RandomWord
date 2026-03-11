@@ -429,7 +429,11 @@
     words.push(...newWords);
     wordInput.value = '';
     renderTags();
-    if (queue.length === 0) refillQueue();
+    // 새로 추가된 단어만 queue에 넣기 (이미 나온 단어는 제외)
+    const shown = new Set(history);
+    const toAdd = newWords.filter(w => !shown.has(w));
+    const insertAt = Math.floor(Math.random() * (queue.length + 1));
+    queue.splice(insertAt, 0, ...toAdd.sort(() => Math.random() - 0.5));
     updateBadge();
   }
 
@@ -437,7 +441,6 @@
     words.splice(i, 1);
     renderTags();
     queue = queue.filter(w => words.includes(w));
-    if (queue.length === 0 && words.length > 0) refillQueue();
     updateBadge();
     if (words.length === 0) showEmpty();
   }
@@ -475,7 +478,11 @@
 
   function nextWord() {
     if (words.length === 0) return;
-    if (queue.length === 0) refillQueue();
+    if (queue.length === 0) {
+      // 모든 단어를 다 봤을 때
+      showDone();
+      return;
+    }
     const w = queue.shift();
     history.unshift(w);
     if (history.length > 10) history.pop();
@@ -498,6 +505,15 @@
     numBadge.textContent = '';
   }
 
+  function showDone() {
+    wordDisp.className = 'word-display';
+    void wordDisp.offsetWidth;
+    wordDisp.innerHTML = '<span class="empty-msg">모든 단어를 완료했어요!<br/>셔플로 다시 시작하세요 🎉</span>';
+    wordDisp.style.fontSize = '';
+    wordDisp.className = 'word-display flash';
+    numBadge.textContent = `${words.length}개 등록 · 남은 0개`;
+  }
+
   function updateBadge() {
     numBadge.textContent = words.length > 0
       ? `${words.length}개 등록 · 남은 ${queue.length}개`
@@ -505,6 +521,9 @@
   }
 
   function shuffleWords() {
+    if (words.length === 0) return;
+    history = [];
+    renderHistory();
     refillQueue();
     nextWord();
   }
