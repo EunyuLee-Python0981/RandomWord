@@ -30,7 +30,6 @@
       gap: 32px;
     }
 
-    /* ── 타이틀 ── */
     h1 {
       font-family: 'Black Han Sans', sans-serif;
       font-size: clamp(2rem, 6vw, 3.5rem);
@@ -40,7 +39,6 @@
     }
     h1 span { color: var(--accent2); }
 
-    /* ── 입력 패널 ── */
     .input-panel {
       width: 100%;
       max-width: 560px;
@@ -112,7 +110,6 @@
     }
     .btn-clear:hover { border-color: var(--accent2); color: var(--accent2); }
 
-    /* ── 단어 목록 토글 ── */
     .tag-toggle-btn {
       background: none;
       border: 1px solid var(--border);
@@ -198,9 +195,9 @@
       border: 2px solid var(--border);
       background: var(--surface);
       overflow: hidden;
+      padding: 20px 24px 36px; /* 하단 hint 공간 확보 */
     }
 
-    /* 노이즈 오버레이 */
     .card-face::before {
       content: '';
       position: absolute;
@@ -212,13 +209,20 @@
 
     .word-display {
       font-family: 'Black Han Sans', sans-serif;
-      font-size: clamp(2rem, 10vw, 4rem);
+      font-size: clamp(1.2rem, 10vw, 4rem); /* 기본값, JS로 동적 조절 */
       color: var(--accent);
       text-align: center;
-      padding: 16px;
       position: relative;
       z-index: 1;
       transition: opacity 0.15s;
+      /* 긴 단어 대응 */
+      width: 100%;
+      word-break: keep-all;
+      overflow-wrap: break-word;
+      line-height: 1.2;
+      display: flex;
+      align-items: center;
+      justify-content: center;
     }
 
     .word-display.flash {
@@ -245,7 +249,6 @@
       color: var(--muted);
     }
 
-    /* ── 컨트롤 버튼 ── */
     .controls {
       display: flex;
       gap: 12px;
@@ -272,7 +275,6 @@
     }
     .btn-shuffle:hover { background: var(--accent2); color: #000; }
 
-    /* ── 히스토리 ── */
     .history {
       width: 100%;
       max-width: 560px;
@@ -301,7 +303,6 @@
     }
     .hist-item:last-child { color: var(--text); border-color: var(--accent); }
 
-    /* ── 빈 상태 ── */
     .empty-msg {
       font-size: 1rem;
       color: var(--muted);
@@ -309,7 +310,6 @@
       padding: 32px 0;
     }
 
-    /* ── 자동 재생 토글 ── */
     .auto-row {
       display: flex;
       align-items: center;
@@ -350,7 +350,6 @@
 
 <h1>랜덤 <span>단어</span> 카드</h1>
 
-<!-- 입력 패널 -->
 <div class="input-panel">
   <label>단어 추가 <span id="wordCountBadge" style="color:var(--accent);margin-left:6px"></span></label>
   <div class="word-input-row">
@@ -374,7 +373,6 @@
   </div>
 </div>
 
-<!-- 카드 -->
 <div class="card-wrapper">
   <div class="card" id="card" onclick="nextWord()">
     <div class="card-face">
@@ -387,13 +385,11 @@
   </div>
 </div>
 
-<!-- 버튼 -->
 <div class="controls">
   <button class="btn-next" onclick="nextWord()">다음 단어 ▶</button>
   <button class="btn-shuffle" onclick="shuffleWords()">셔플 🔀</button>
 </div>
 
-<!-- 히스토리 -->
 <div class="history">
   <h2>최근 기록</h2>
   <div class="history-list" id="historyList"></div>
@@ -415,6 +411,17 @@
     if (e.key === 'Enter') addWord();
   });
 
+  // 단어 길이에 따라 폰트 크기 동적 조절
+  function calcFontSize(word) {
+    const len = word.length;
+    const cardW = document.getElementById('card').offsetWidth;
+    // 카드 가로 기준으로 글자당 최대 크기 계산
+    const maxByWidth = Math.floor((cardW - 48) / (len * 0.65)); // 0.65: Black Han Sans 자폭 비율
+    const maxByHeight = Math.floor((document.getElementById('card').offsetHeight - 56) * 0.75);
+    const size = Math.min(maxByWidth, maxByHeight, 64); // 최대 64px
+    return Math.max(size, 18) + 'px'; // 최소 18px
+  }
+
   function addWord() {
     const raw = wordInput.value.trim();
     if (!raw) return;
@@ -428,7 +435,7 @@
 
   function removeWord(i) {
     words.splice(i, 1);
-    renderTags(); // 개수 배지 갱신
+    renderTags();
     queue = queue.filter(w => words.includes(w));
     if (queue.length === 0 && words.length > 0) refillQueue();
     updateBadge();
@@ -479,13 +486,15 @@
 
   function showWord(w) {
     wordDisp.className = 'word-display';
-    void wordDisp.offsetWidth; // reflow
+    void wordDisp.offsetWidth;
     wordDisp.textContent = w;
+    wordDisp.style.fontSize = calcFontSize(w);
     wordDisp.className = 'word-display flash';
   }
 
   function showEmpty() {
     wordDisp.innerHTML = '<span class="empty-msg">단어를 추가하면<br/>여기에 나타납니다</span>';
+    wordDisp.style.fontSize = '';
     numBadge.textContent = '';
   }
 
@@ -530,7 +539,14 @@
     }
   }
 
-  // 키보드 단축키
+  // 창 크기 바뀌면 현재 단어 폰트 재계산
+  window.addEventListener('resize', () => {
+    const cur = wordDisp.textContent;
+    if (cur && words.includes(cur)) {
+      wordDisp.style.fontSize = calcFontSize(cur);
+    }
+  });
+
   document.addEventListener('keydown', e => {
     if (e.target === wordInput) return;
     if (e.key === ' ' || e.key === 'ArrowRight') { e.preventDefault(); nextWord(); }
